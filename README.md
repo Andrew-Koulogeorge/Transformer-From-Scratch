@@ -1,0 +1,2 @@
+# Reproducing Attention is All You Need
+This is an educational codebase for an Autoregressive Language Model trained on Shakespeare text. I reproduced the architecture used in Attention is All You Need. The Language Model is powered by a decoder-stacked Transformer, which I implemented from scratch in PyTorch.  
