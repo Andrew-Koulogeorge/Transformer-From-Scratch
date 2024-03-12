@@ -37,7 +37,7 @@ class Tokenizer:
 def load_dataset():
     
     # open the dataset
-    with open("/Users/andrewkoulogeorge/Desktop/Dartmouth/Senior/Winterim24/PyTorch/GPT/tiny-shakespeare.txt", "r") as file:
+    with open("/home/andrew/andrew/Transformer-From-Scratch/tiny-shakespeare.txt", "r") as file:
         data = file.read()
 
     # tokens of our vocabulary will be on the charachter level
@@ -71,9 +71,9 @@ def get_batch(dataset, batch_size):
 
 def save_dataset():
     tokenizer, train_set, test_set = load_dataset()
-    torch.save(tokenizer, f="./tokenizer.pt")
-    torch.save(train_set, f="./tokenized_train.pt")
-    torch.save(test_set, f="./tokenized_test.pt")
+    torch.save(tokenizer, f="tokenizer.pt")
+    torch.save(train_set, f="tokenized_train.pt")
+    torch.save(test_set, f="tokenized_test.pt")
 
 def train():
 
@@ -85,6 +85,7 @@ def train():
 
     # define the model and pass its parameters to an optimizer
     model = AutoRegressiveLanguageModel()
+    model = model.to(config.DEVICE)
     optimizer = optim.Adam(params=model.parameters(), lr=config.LEARNING_RATE)
 
     loss_tracker = []
@@ -95,12 +96,15 @@ def train():
 
         # get a random batch from the dataset
         X, Y = get_batch(train_split, config.BATCH_SIZE)
+        X = X.to(config.DEVICE)
+        Y = Y.to(config.DEVICE)
         assert X.shape == (config.BATCH_SIZE, config.BLOCK_SIZE), "Input data matrix not correct dimention"
 
         # zero out the gradient so we correctly compute the gradient (autograd accumulates grads)
         optimizer.zero_grad()
 
         # compute the forward pass for the model
+
         logits, loss = model(idx=X, targets=Y)
         assert logits.shape == (config.BATCH_SIZE*config.BLOCK_SIZE, config.VOCAB_SIZE), "Forward pass logits matrix not correct dim"
 
@@ -121,28 +125,6 @@ def train():
     print(f"Starting loss: {loss_tracker[0]}")
     print(f"Ending loss: {loss_tracker[-1]}")
 
-def generate_text(prompt):
-
-    tokenizer = torch.load(f="tokenizer.pt")
-
-    model_trained = AutoRegressiveLanguageModel()
-    trained_model_state = torch.load("trained_model_thetas.pt")
-    model_trained.load_state_dict(state_dict=trained_model_state)
-    
-    model_random = AutoRegressiveLanguageModel()
-
-    encoded_prompt = tokenizer.encode(prompt)
-    
-    idx = torch.unsqueeze(torch.tensor(encoded_prompt), dim=0)
-
-    model_random.eval()
-    model_trained.eval()
-
-    output1 = torch.squeeze(model_random.generate(idx, max_number_generated=50)).tolist()
-    output2 = torch.squeeze(model_trained.generate(idx, max_number_generated=50)).tolist()
-    
-    print(f"This is the random model: {tokenizer.decode(output1)}\n\n")
-    print(f"This is the trained model: {tokenizer.decode(output2)} ")
 
 
 if __name__ == "__main__":
@@ -152,5 +134,5 @@ if __name__ == "__main__":
     
     train()
     print(f"Finished training the model! ")
-    generate_text("Hello, thee")
+   
 

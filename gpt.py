@@ -24,7 +24,10 @@ class AutoRegressiveLanguageModel(nn.Module):
             B, T = idx.shape
         
             token_embedding = self.token_embedding_table(idx) # (B,T,d)
-            positional_embedding = self.positional_embedding_table(torch.arange(0,config.BLOCK_SIZE)) # (T,d)
+            
+            pos_vector = torch.arange(0,config.BLOCK_SIZE)
+            pos_vector = pos_vector.to(config.DEVICE)
+            positional_embedding = self.positional_embedding_table(pos_vector) # (T,d)
 
             x = token_embedding + positional_embedding # (B,T,d)
 
@@ -73,9 +76,9 @@ class TransformerBlock(nn.Module):
         super().__init__()
         
         self.multihead = MultiHeadSelfAttention(num_heads=config.NUM_HEADS, head_dim=int(config.MODEL_DIMENSION/config.NUM_HEADS))
-        self.layer_norm1 = torch.nn.LayerNorm(config.MODEL_DIMENSION)
+        self.layer_norm1 = torch.nn.LayerNorm(config.MODEL_DIMENSION, device=config.DEVICE)
         self.feed_forward = FeedForward()
-        self.layer_norm2 = torch.nn.LayerNorm(config.MODEL_DIMENSION)
+        self.layer_norm2 = torch.nn.LayerNorm(config.MODEL_DIMENSION, device=config.DEVICE)
         self.dropout = nn.Dropout(p=0.1)
     
     def forward(self, X):
@@ -124,14 +127,14 @@ class SelfAttentionHead(nn.Module):
         # need to define the structure for the attention layer 
         # linear layers at the beggining go from the embedding dim (d) to the attention_dim. This is the data dependent projection!
         
-        self.key = nn.Linear(config.MODEL_DIMENSION, attention_dim, bias=False)
-        self.query = nn.Linear(config.MODEL_DIMENSION, attention_dim, bias=False)
-        self.value = nn.Linear(config.MODEL_DIMENSION, attention_dim, bias=False)
+        self.key = nn.Linear(config.MODEL_DIMENSION, attention_dim, bias=False, device=config.DEVICE)
+        self.query = nn.Linear(config.MODEL_DIMENSION, attention_dim, bias=False, device=config.DEVICE)
+        self.value = nn.Linear(config.MODEL_DIMENSION, attention_dim, bias=False, device=config.DEVICE)
 
         # buffers are not apart of the learnable parameters of the model but are apart of the models state! 
         # this single line it what makes the attention head a decoder. We are preventing the model from looking ahead
 
-        self.register_buffer(name="mask", tensor=torch.tril(torch.ones(size=(config.BLOCK_SIZE,config.BLOCK_SIZE))))
+        self.register_buffer(name="mask", tensor=torch.tril(torch.ones(size=(config.BLOCK_SIZE,config.BLOCK_SIZE), device=config.DEVICE)))
 
         self.attention_dim = attention_dim
 
@@ -181,6 +184,7 @@ class FeedForward(nn.Module):
             nn.ReLU(),
             nn.Linear(4*config.MODEL_DIMENSION, config.MODEL_DIMENSION)
         )
+        self.feed_forward = self.feed_forward.to(config.DEVICE)
     
     def forward(self, X):
         return self.feed_forward(X)   
