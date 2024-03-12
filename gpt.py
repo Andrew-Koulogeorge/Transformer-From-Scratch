@@ -10,13 +10,16 @@ import config
 
 class AutoRegressiveLanguageModel(nn.Module):
 
-        def __init__(self) -> None:
+        def __init__(self, vocab_size) -> None:
             super().__init__()
 
-            self.token_embedding_table = nn.Embedding(config.VOCAB_SIZE,config.MODEL_DIMENSION)
+            self.token_embedding_table = nn.Embedding(vocab_size,config.MODEL_DIMENSION)
             self.positional_embedding_table = nn.Embedding(config.BLOCK_SIZE, config.MODEL_DIMENSION) 
-            self.transformer_blocks = [TransformerBlock() for _ in range(config.NUM_TRANSFORMER_BLOCKS)]
-            self.lm_head = nn.Linear(config.MODEL_DIMENSION, config.VOCAB_SIZE)
+
+            # Mistake I made: need to store all the transformer blocks in a Module List. lets all of the modules be properly registered with the parent class
+            
+            self.transformer_blocks = nn.ModuleList([TransformerBlock() for _ in range(config.NUM_TRANSFORMER_BLOCKS)])
+            self.lm_head = nn.Linear(config.MODEL_DIMENSION, vocab_size)
 
         def forward(self, idx, targets=None):
             
@@ -34,18 +37,18 @@ class AutoRegressiveLanguageModel(nn.Module):
             # apply transformer blocks to all input
             for transformer_block in self.transformer_blocks: x = transformer_block(x) # (B,T,d)
 
-            logits = self.lm_head(x) # (B,T,d) --> (B,T,config.VOCAB_SIZE)
+            logits = self.lm_head(x) # (B,T,d) --> (B,T,vocab_size)
 
             if targets == None:
                 loss = None
             else:
                 """
-                per the pytorch documentation, the inputs to CEL needs to be a tensor of size equal to the number of classes (config.VOCAB_SIZE) for a non batched input and (B x config.VOCAB_SIZE) for a batched input
+                per the pytorch documentation, the inputs to CEL needs to be a tensor of size equal to the number of classes (vocab_size) for a non batched input and (B x vocab_size) for a batched input
                 """
-                B,T,config.VOCAB_SIZE = logits.shape
+                B,T,vocab_size = logits.shape
 
                 # need to reformat the logits so that it works with the pytorch cross entropy function
-                logits = logits.view(B*T,config.VOCAB_SIZE)
+                logits = logits.view(B*T,vocab_size)
                 targets = targets.view(B*T)
                 loss = F.cross_entropy(logits, targets)
             
@@ -62,8 +65,8 @@ class AutoRegressiveLanguageModel(nn.Module):
             for _ in range(max_number_generated):
         
                 logits, _ = self(idx[:,-config.BLOCK_SIZE:]) # B x T --> B x T x vocab size. 
-                last_token_probabilities = torch.softmax(logits[:,-1,:], dim=1) # B x T x vocab size --> B x config.VOCAB_SIZE
-                idx_next = torch.multinomial(last_token_probabilities, num_samples=1) # B x config.VOCAB_SIZE --> B x 1
+                last_token_probabilities = torch.softmax(logits[:,-1,:], dim=1) # B x T x vocab size --> B x vocab_size
+                idx_next = torch.multinomial(last_token_probabilities, num_samples=1) # B x vocab_size --> B x 1
                 idx = torch.cat((idx, idx_next), dim=1) # B x T --> B x (T+1)
 
             return idx        

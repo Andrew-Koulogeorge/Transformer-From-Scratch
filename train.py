@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch import optim
 import config 
 from gpt import AutoRegressiveLanguageModel
+import argparse
 # Tokenizer class to convert the text dataset into sequences of integers that the model can understand
 
 class Tokenizer:
@@ -15,6 +16,9 @@ class Tokenizer:
 
         self.char_to_int = {char:integer for integer, char in enumerate(vocabulary)}
         self.int_to_char = {integer:char for integer, char in enumerate(vocabulary)}
+        self.vocab_size = len(vocabulary)
+        print(f"This dataset has a size of :{self.vocab_size}")
+        # print(self.char_to_int.keys())
 
     def encode(self, text):
         """
@@ -34,10 +38,10 @@ class Tokenizer:
 
 # load the dataset
 
-def load_dataset():
+def load_dataset(path):
     
     # open the dataset
-    with open("/home/andrew/andrew/Transformer-From-Scratch/tiny-shakespeare.txt", "r") as file:
+    with open(path, "r") as file:
         data = file.read()
 
     # tokens of our vocabulary will be on the charachter level
@@ -54,6 +58,12 @@ def load_dataset():
 
     return tokenizer, train_split, test_split
 
+def save_dataset(dataset, path):
+    tokenizer, train_set, test_set = load_dataset(path)
+    torch.save(tokenizer, f=f"tokenizer_{dataset}.pt")
+    torch.save(train_set, f=f"tokenized_train_{dataset}.pt")
+    torch.save(test_set, f=f"tokenized_test_{dataset}.pt")
+
 
 def get_batch(dataset, batch_size):
     """
@@ -69,22 +79,16 @@ def get_batch(dataset, batch_size):
 
     return X, Y
 
-def save_dataset():
-    tokenizer, train_set, test_set = load_dataset()
-    torch.save(tokenizer, f="tokenizer.pt")
-    torch.save(train_set, f="tokenized_train.pt")
-    torch.save(test_set, f="tokenized_test.pt")
-
 def train():
 
     # load in tokenizer and the datasets
-    tokenizer = torch.load(f="tokenizer.pt")
-    train_split = torch.load(f="tokenized_train.pt")
-    test_split = torch.load(f="tokenized_test.pt")
-
+    tokenizer = torch.load(f="tokenizer_Harry Potter.pt")
+    train_split = torch.load(f="tokenized_train_Harry Potter.pt")
+    test_split = torch.load(f="tokenized_test_Harry Potter.pt")
+    vocab_size = tokenizer.vocab_size
 
     # define the model and pass its parameters to an optimizer
-    model = AutoRegressiveLanguageModel()
+    model = AutoRegressiveLanguageModel(vocab_size)
     model = model.to(config.DEVICE)
     optimizer = optim.Adam(params=model.parameters(), lr=config.LEARNING_RATE)
 
@@ -106,7 +110,7 @@ def train():
         # compute the forward pass for the model
 
         logits, loss = model(idx=X, targets=Y)
-        assert logits.shape == (config.BATCH_SIZE*config.BLOCK_SIZE, config.VOCAB_SIZE), "Forward pass logits matrix not correct dim"
+        assert logits.shape == (config.BATCH_SIZE*config.BLOCK_SIZE, vocab_size), "Forward pass logits matrix not correct dim"
 
         # keep track of the loss at each iteration
         loss_tracker.append(loss.item())
@@ -118,21 +122,34 @@ def train():
         optimizer.step()
 
         if step % 500 == 0:
-            print(loss.item())
-    
+            print(f"Iteration {step}/{config.ITERATIONS}: Loss= {loss.item()}")
+            
     torch.save(obj=model.state_dict(), f="trained_model_thetas.pt")
     
     print(f"Starting loss: {loss_tracker[0]}")
     print(f"Ending loss: {loss_tracker[-1]}")
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--dataset_name", type=str, default="Harry Potter")
+parser.add_argument("--path", type=str, default="/Users/andrewkoulogeorge/Desktop/Dartmouth/Senior/Winterim24/PyTorch/GPT/Harry_Potter_all_books_preprocessed.txt")
+parser.add_argument("--download_data", action="store_true")
+parser.add_argument("--train", action="store_true")
 
 if __name__ == "__main__":
-   
-    save_dataset()
-    print(f"We saved the datasets sucsessfully!")
+    args = parser.parse_args()
+
+    dataset_name = args.dataset_name
+    dataset_path = args.path
+    train_loop = args.train
+    download = args.download_data
     
-    train()
-    print(f"Finished training the model! ")
+    if download:
+        save_dataset(dataset_name, dataset_path)
+        print(f"We saved the datasets sucsessfully!")   
+    
+    if train_loop:
+        train()
+        print(f"Finished training the model! ")
    
 
