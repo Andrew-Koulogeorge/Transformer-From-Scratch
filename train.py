@@ -5,6 +5,7 @@ from torch import optim
 import config 
 from gpt import AutoRegressiveLanguageModel
 import argparse
+
 # Tokenizer class to convert the text dataset into sequences of integers that the model can understand
 
 class Tokenizer:
@@ -17,6 +18,7 @@ class Tokenizer:
         self.char_to_int = {char:integer for integer, char in enumerate(vocabulary)}
         self.int_to_char = {integer:char for integer, char in enumerate(vocabulary)}
         self.vocab_size = len(vocabulary)
+        self.vocab = vocabulary
         print(f"This dataset has a size of :{self.vocab_size}")
         # print(self.char_to_int.keys())
 
@@ -82,9 +84,9 @@ def get_batch(dataset, batch_size):
 def train():
 
     # load in tokenizer and the datasets
-    tokenizer = torch.load(f="tokenizer_Harry Potter.pt")
-    train_split = torch.load(f="tokenized_train_Harry Potter.pt")
-    test_split = torch.load(f="tokenized_test_Harry Potter.pt")
+    tokenizer = torch.load(f="tokenizer_HarryPotter.pt")
+    train_split = torch.load(f="tokenized_train_HarryPotter.pt")
+    test_split = torch.load(f="tokenized_test_HarryPotter.pt")
     vocab_size = tokenizer.vocab_size
 
     # define the model and pass its parameters to an optimizer
@@ -131,8 +133,8 @@ def train():
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_name", type=str, default="Harry Potter")
-parser.add_argument("--path", type=str, default="/Users/andrewkoulogeorge/Desktop/Dartmouth/Senior/Winterim24/PyTorch/GPT/Harry_Potter_all_books_preprocessed.txt")
+parser.add_argument("--dataset_name", type=str, default="HarryPotter")
+parser.add_argument("--path", type=str, default="/home/andrew/andrew/Transformer-From-Scratch/Harry_Potter_all_books_preprocessed.txt")
 parser.add_argument("--download_data", action="store_true")
 parser.add_argument("--train", action="store_true")
 
